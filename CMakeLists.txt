@@ -87,9 +87,13 @@ if(${LINK_TO_PYTHON})
 	target_link_libraries(chemtools_cuda PRIVATE CUDA::cublas)
 endif()
 
+add_subdirectory(tests)
 # Compilation of the tests, not needed e.g. if `LINK_TO_PYTHON` IS True/ON
 set(${DONT_COMPILE_TESTS} OFF CACHE BOOL "Don't compile the tests")
-set(COMPILE_TESTS NOT ${DONT_COMPILE_TESTS})
-if(${COMPILE_TESTS})
+if(NOT ${DONT_COMPILE_TESTS})
 	add_subdirectory(tests)
 endif()
+
+add_executable (main_c main.cu)
+target_link_libraries(main_c PRIVATE chemtools_cuda_lib)
+target_link_libraries(main_c PUBLIC pybind11::embed)
