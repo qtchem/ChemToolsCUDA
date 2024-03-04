@@ -34,7 +34,9 @@ set(SOURCES
 		src/utils.cpp
 		src/evaluate_laplacian.cu
 		src/evaluate_kinetic_dens.cu
-		src/evaluate_densbased.cu)
+		src/evaluate_densbased.cu
+		src/evaluate_hessian.cu
+)
 set(HEADERS
         include/basis_to_gpu.cuh
         include/contracted_shell.h
@@ -50,7 +52,9 @@ set(HEADERS
 		include/utils.h
         include/evaluate_laplacian.cuh
 		include/evaluate_kinetic_dens.cuh
-		include/evaluate_densbased.cuh)
+		include/evaluate_densbased.cuh
+		include/evaluate_hessian.cuh
+)
 find_package(CUDAToolkit REQUIRED)  # The point of this is to call CUDA code from C++ but without including CUDA code.
                                     #  see stackexchange - "linking of cuda library in cmake"
 
