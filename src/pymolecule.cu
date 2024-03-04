@@ -56,7 +56,7 @@ Vector chemtools::Molecule::compute_electron_density(const Eigen::Ref<MatrixX3R>
 }
 
 
-Vector chemtools::Molecule::compute_electron_density_cubic(
+TensorXXXR chemtools::Molecule::compute_electron_density_cubic(
     const Vector3D& klower_bnd, const Matrix33R& kaxes, const IntVector3D& knumb_points, const bool disp
 ) {
   Matrix33C kaxes_col_order = kaxes;
@@ -66,7 +66,7 @@ Vector chemtools::Molecule::compute_electron_density_cubic(
       {knumb_points[0], knumb_points[1], knumb_points[2]}, disp
   );
   /// Eigen Tensor doesn't work with pybind11, so the trick here would be to use array_t to convert them
-  Vector v2 = Eigen::Map<Vector>(dens.data(), numb_pts);
+  TensorXXXR v2 = Eigen::TensorMap<TensorXXXR>(dens.data(), knumb_points[0], knumb_points[1], knumb_points[2]);
   return v2;
 }
 
