@@ -10164,6 +10164,17 @@ __host__ std::vector<double> chemtools::compute_electrostatic_potential_over_poi
   chemtools::MolecularBasis molecular_basis = iodata.GetOrbitalBasis();
   int nbasisfuncs = molecular_basis.numb_basis_functions();
 
+  // Return index
+  std::array<std::size_t, 2> const_mem = chemtools::add_mol_basis_to_constant_memory_array(molecular_basis, true);
+  std::size_t index_shell = const_mem[0];
+  if (index_shell != molecular_basis.numb_contracted_shells()) {
+    std::string err_message2 = "This only works for basis-set that can fit entirely into constant memory. \n"
+                               "Index of the shell " + std::to_string(index_shell) +
+                               " is equal to number of contracted shells: " +
+        std::to_string(molecular_basis.numb_contracted_shells());
+    throw std::runtime_error(err_message2);
+  }
+
   // Define the variables for the sizes in integer or in bytes.
   size_t t_numb_pts = knumb_pts;
   size_t t_nbasis = nbasisfuncs;
