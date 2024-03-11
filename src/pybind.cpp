@@ -12,12 +12,13 @@ PYBIND11_MODULE(chemtools_cuda, m) {
 
   py::class_<chemtools::Molecule>(m, "Molecule")
       .def(py::init<const std::string &>())
-      .def("basis_set_to_constant_memory",
-        &chemtools::Molecule::basis_set_to_constant_memory,
-        "Read a FCHK File and transfer it to constant memory. Required for all calculations"
-        "If do_decontracted_basis=True, then basis-set is stored as segmented contraction shell",
-        py::arg("do_segmented_basis") = false
-      )
+      // DEPRECIATED because now the molecule itself reads off the basis-set.
+//      .def("basis_set_to_constant_memory",
+//        &chemtools::Molecule::basis_set_to_constant_memory,
+//        "Read a FCHK File and transfer it to constant memory. Required for all calculations"
+//        "If do_decontracted_basis=True, then basis-set is stored as segmented contraction shell",
+//        py::arg("do_segmented_basis") = false
+//      )
       .def("compute_electron_density",
            &chemtools::Molecule::compute_electron_density,
            py::return_value_policy::reference_internal,
