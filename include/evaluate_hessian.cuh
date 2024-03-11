@@ -6,8 +6,19 @@
 #include "contracted_shell.h"
 #include "iodata.h"
 
+// Create a function pointer type definition
+typedef void (*d_func_t)(double*, const double*, const int, const int, const int);
+
 
 namespace chemtools {
+
+/**
+ * DEVICE FUNCTIONS
+ * ---------------------------------------------------------------------------------------------------------------
+ */
+// This points to the correct __device__ function that evaluates over contractions
+__device__ extern d_func_t p_evaluate_sec_contractions;
+
 /**
  * Evaluate the second derivative of contractions from any grid of points.
  *
@@ -24,10 +35,16 @@ namespace chemtools {
  * @param[in] d_points The device pointer to the grid points of size (N, 3) stored in column-major order.
  * @param[in] d_knumb_points The number of points in the grid.
  */
-__global__ void evaluate_sec_deriv_contractions_from_constant_memory(
-    double* d_sec_deriv_contracs, const double* const d_points, const int knumb_points, const int knumb_contractions
+__device__ void evaluate_sec_deriv_contractions_from_constant_memory(
+    double* d_sec_deriv_contracs, const double* const d_points, const int knumb_points, const int knumb_contractions,
+    const int i_contr_start = 0
 );
 
+
+/**
+ * HOST FUNCTIONS
+ * ---------------------------------------------------------------------------------------------------------------
+ */
 /**
  * Return second derivatives of the contractions to the host
  *
@@ -47,8 +64,8 @@ __host__ std::vector<double> evaluate_contraction_second_derivative(
  *          \frac{\partial \phi_k(r)}{\partial x_n} \frac{\partial \phi_l(r)}{\partial x_m}
  */
 __host__ static void evaluate_first_term(
-    cublasHandle_t& handle, double* d_hessian, const double* const d_points, const double* const h_one_rdm,
-    const size_t& numb_pts_iter, const size_t& knbasisfuncs
+    cublasHandle_t& handle, const chemtools::MolecularBasis& basis, double* d_hessian, const double* const d_points,
+    const double* const h_one_rdm, const size_t& numb_pts_iter, const size_t& knbasisfuncs
 );
 
 /**
