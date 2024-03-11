@@ -19,7 +19,6 @@ using namespace py::literals;
 
 
 TEST_CASE( "Test Derivative of Contractions Against gbasis", "[evaluate_contraction_derivatives]" ) {
-  //py::initialize_interpreter();  // Open up the python interpretor for this test.
   {  // Need this so that the python object doesn't outline the interpretor.
     // Get the IOdata object from the fchk file.
     std::string fchk_file = GENERATE(
@@ -50,12 +49,11 @@ TEST_CASE( "Test Derivative of Contractions Against gbasis", "[evaluate_contract
     std::vector<double> points(3 * numb_pts);
     std::random_device rnd_device;
     std::mt19937  merseene_engine {rnd_device()};
-    std::uniform_real_distribution<double> dist {-5, 5};
+    std::uniform_real_distribution<double> dist {-10, 10};
     auto gen = [&dist, &merseene_engine](){return dist(merseene_engine);};
     std::generate(points.begin(), points.end(), gen);
 
     // Calculate Gradient
-    chemtools::add_mol_basis_to_constant_memory_array(iodata.GetOrbitalBasis(), false, false);
     std::vector<double> gradient_result = chemtools::evaluate_contraction_derivatives(iodata, points.data(), numb_pts);
 
     // COnvert them (with copy) to python objects so that they can be transfered.
@@ -77,14 +75,9 @@ from gbasis.evals.density import evaluate_deriv_basis, evaluate_basis
 from iodata import load_one
 from gbasis.wrappers import from_iodata
 
-#np.set_printoptions(threshold=np.inf)
-#print(true_result)
-#print(true_result.shape)
-
-#print(true_result[:10])
 true_result = true_result.reshape((3, nbasis, numb_pts), order="C")  # row-major order
 iodata = load_one(fchk_path)
-basis, type = from_iodata(iodata)
+basis = from_iodata(iodata)
 
 points = points.reshape((numb_pts, 3), order="F")
 points = np.array(points, dtype=np.float64)
@@ -93,22 +86,21 @@ points = np.array(points, dtype=np.float64)
 for i, deriv in enumerate([[1, 0, 0], [0, 1, 0], [0, 0, 1]]):
 
   derivative =  evaluate_deriv_basis(
-              basis, points, np.array(deriv), coord_type=type
+              basis, points, np.array(deriv)
           )
   error = np.abs(derivative - true_result[i, :, :])
+  print("Statistics", np.mean(derivative), np.max(derivative))
 
   print(deriv, np.max(error), np.mean(error), np.std(error))
   assert np.all(error < 1e-10), "Gradient on electron density on GPU doesn't match gbasis."
 
     )", py::globals(), locals);
   } // Need this so that the python object doesn't outline the interpretor when we close it up.
-  //py::finalize_interpreter(); // Close up the python interpretor for this test.
 }
 
 
 
 TEST_CASE( "Test Gradient of Electron Density Against gbasis", "[evaluate_electron_density_gradient]" ) {
-  //py::initialize_interpreter();  // Open up the python interpretor for this test.
   {  // Need this so that the python object doesn't outline the interpretor.
     // Get the IOdata object from the fchk file.
     std::string fchk_file = GENERATE(
@@ -129,13 +121,14 @@ TEST_CASE( "Test Gradient of Electron Density Against gbasis", "[evaluate_electr
         "./tests/data/h2o.fchk",
         "./tests/data/ch4.fchk",
         "./tests/data/qm9_000092_HF_cc-pVDZ.fchk",
-        "./tests/data/qm9_000104_PBE1PBE_pcS-3.fchk"
+        "./tests/data/qm9_000104_PBE1PBE_pcS-3.fchk",
+        "./tests/data/DUTLAF10_0_q000_m01_k00_force_uwb97xd_def2svpd.fchk"
     );
-    std::cout << "FCHK FILE %s \n" << fchk_file << std::endl;
+    std::cout << "Gradient Test: FCHK file: %s \n" << fchk_file << std::endl;
     chemtools::IOData iodata = chemtools::get_molecular_basis_from_fchk(fchk_file);
 
     // Gemerate random grid.
-    int numb_pts = 700000;
+    int numb_pts = 5000000;
     std::vector<double> points(3 * numb_pts);
     std::random_device rnd_device;
     std::mt19937  merseene_engine {rnd_device()};
@@ -144,7 +137,6 @@ TEST_CASE( "Test Gradient of Electron Density Against gbasis", "[evaluate_electr
     std::generate(points.begin(), points.end(), gen);
 
     // Calculate Gradient
-    chemtools::add_mol_basis_to_constant_memory_array(iodata.GetOrbitalBasis(), false, false);
     std::vector<double> gradient_result = chemtools::evaluate_electron_density_gradient(iodata, points.data(), numb_pts);
 
     // COnvert them (with copy) to python objects so that they can be transfered.
@@ -159,35 +151,33 @@ TEST_CASE( "Test Gradient of Electron Density Against gbasis", "[evaluate_electr
                            "numb_pts"_a = numb_pts);
     py::exec(R"(
 import numpy as np
-from gbasis.evals.density import evaluate_density_gradient, evaluate_density
+from gbasis.evals.density import evaluate_density_gradient, evaluate_density, evaluate_deriv_basis
 from iodata import load_one
 from gbasis.wrappers import from_iodata
 
 true_result = true_result.reshape((numb_pts, 3), order="C")  # Row-major order
 
 iodata = load_one(fchk_path)
-basis, type = from_iodata(iodata)
+basis = from_iodata(iodata)
 rdm = (iodata.mo.coeffs * iodata.mo.occs).dot(iodata.mo.coeffs.T)
 points = points.reshape((numb_pts, 3), order="F")
 points = np.array(points, dtype=np.float64)
 
-indices_to_compute = np.random.choice(np.arange(len(points)), size=10000)
+indices_to_compute = np.unique(np.random.choice(np.arange(len(points)), size=10000))
 true_result = true_result[indices_to_compute, :]
 points = points[indices_to_compute, :]
 
-gradient = evaluate_density_gradient(rdm, basis, points, coord_type=type)
+gradient = evaluate_density_gradient(rdm, basis, points)
 error = np.abs(gradient - true_result)
 print("Max, Mean, STD , Min error ", np.max(error), np.mean(error), np.std(error), np.min(error))
 assert np.all(error < 1e-10), "Gradient on electron density on GPU doesn't match gbasis."
     )", py::globals(), locals);
   } // Need this so that the python object doesn't outline the interpretor when we close it up.
-  //py::finalize_interpreter(); // Close up the python interpretor for this test.
 }
 
 
 
 TEST_CASE( "Test Gradient of Electron Density Against gbasis (Col Order)", "[evaluate_electron_density_gradient_col]" ) {
-  //py::initialize_interpreter();  // Open up the python interpretor for this test.
   {  // Need this so that the python object doesn't outline the interpretor.
     // Get the IOdata object from the fchk file.
     std::string fchk_file = GENERATE(
@@ -210,7 +200,7 @@ TEST_CASE( "Test Gradient of Electron Density Against gbasis (Col Order)", "[eva
         "./tests/data/qm9_000092_HF_cc-pVDZ.fchk",
         "./tests/data/qm9_000104_PBE1PBE_pcS-3.fchk"
     );
-    std::cout << "FCHK FILE %s \n" << fchk_file << std::endl;
+    std::cout << "Gradient Test: FCHK FILE %s \n" << fchk_file << std::endl;
     chemtools::IOData iodata = chemtools::get_molecular_basis_from_fchk(fchk_file);
 
     // Gemerate random grid.
@@ -223,7 +213,6 @@ TEST_CASE( "Test Gradient of Electron Density Against gbasis (Col Order)", "[eva
     std::generate(points.begin(), points.end(), gen);
 
     // Calculate Gradient
-    chemtools::add_mol_basis_to_constant_memory_array(iodata.GetOrbitalBasis(), false, false);
     std::vector<double> gradient_result = chemtools::evaluate_electron_density_gradient(
         iodata, points.data(), numb_pts, false
     );
@@ -247,7 +236,7 @@ from gbasis.wrappers import from_iodata
 true_result = true_result.reshape((numb_pts, 3), order="F")  # Row-major order
 
 iodata = load_one(fchk_path)
-basis, type = from_iodata(iodata)
+basis = from_iodata(iodata)
 rdm = (iodata.mo.coeffs * iodata.mo.occs).dot(iodata.mo.coeffs.T)
 points = points.reshape((numb_pts, 3), order="F")
 points = np.array(points, dtype=np.float64)
@@ -256,11 +245,10 @@ indices_to_compute = np.random.choice(np.arange(len(points)), size=10000)
 true_result = true_result[indices_to_compute, :]
 points = points[indices_to_compute, :]
 
-gradient = evaluate_density_gradient(rdm, basis, points, coord_type=type)
+gradient = evaluate_density_gradient(rdm, basis, points)
 error = np.abs(gradient - true_result)
 print("Max, Mean, STD , Min error ", np.max(error), np.mean(error), np.std(error), np.min(error))
 assert np.all(error < 1e-10), "Gradient on electron density on GPU doesn't match gbasis."
     )", py::globals(), locals);
   } // Need this so that the python object doesn't outline the interpretor when we close it up.
-  //py::finalize_interpreter(); // Close up the python interpretor for this test.
 }
